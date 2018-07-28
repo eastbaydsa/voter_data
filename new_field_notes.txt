@@ -1,3 +1,7 @@
+python lib/python2.7/site-packages/pgadmin4/pgAdmin4.py
+
+
+
 #  !!!! registrants must be double quoted whereas voting_history is not
 
 
@@ -14,8 +18,14 @@
 ALTER TABLE registrants ALTER COLUMN dob TYPE DATE
 using to_date(dob, 'YYYY-MM-DD');
 
-Voted in Primary Boolean
+#Voted in Primary Boolean
 ################################################################################################################################################################
+
+# This is the SQL that created the primary_voters view, can be updated so that the query includes this view as an in query WITH statement. 
+#SELECT DISTINCT voting_history.registrantid
+#   FROM voting_history
+#  WHERE voting_history.electiondate = '2008-11-04'::date;
+
 WITH pv AS (SELECT registrantid FROM registrants NATURAL JOIN primary_voters) UPDATE registrants SET voted_in_primary = TRUE FROM pv WHERE pv.registrantid = registrants.registrantid;
 
 Number of times voted by mail
@@ -37,6 +47,7 @@ ALTER TABLE registrants ADD COLUMN percent_four_years FLOAT;
 SELECT COUNT(DISTINCT electiondate) FROM voting_history WHERE electiondate > now() - INTERVAL '4 years' <--- Use this to calculate the "14" constant
 
 WITH percentage AS (SELECT * FROM registrants NATURAL JOIN (SELECT registrantid, (count(registrantid) :: FLOAT / 14 * 100) AS cent FROM voting_history WHERE electiondate > now() - INTERVAL '4 years' GROUP BY registrantid) AS perc)
+
 UPDATE registrants SET percent_four_years = cent FROM percentage WHERE percentage.registrantid = registrants.registrantid;
 
 
@@ -51,3 +62,66 @@ UPDATE registrants SET new_registrants =  TRUE FROM new_registrant WHERE registr
 
 registered in last year
 ################################################################################################################################################
+
+ALTER TABLE registrants ADD COLUMN registered_last_year BOOLEAN DEFAULT FALSE;
+
+WITH year_registered AS (SELECT * FROM registrants NATURAL JOIN (SELECT registrantid, registrationdate FROM registrants WHERE registrationdate > now() - INTERVAL '1 year') AS joined)
+
+UPDATE registrants SET registered_last_year = TRUE FROM year_registered WHERE registrants.registrantid = year_registered.registrantid;
+
+
+Voted in 2016 primary 
+################################################################################################################################################
+ALTER TABLE registrants ADD COLUMN sixteen_primary_voter BOOLEAN DEFAULT FALSE;
+
+WITH primary_voters AS (SELECT * FROM registrants NATURAL JOIN (SELECT registrantid, electionname, electiondate FROM voting_history WHERE electiondate = '2016-06-07') AS joined)
+
+UPDATE registrants SET sixteen_primary_voter = TRUE FROM primary_voters WHERE registrants.registrantid = primary_voters.registrantid;
+
+Voted in 2018 primary
+################################################################################################################################################
+ALTER TABLE registrants ADD COLUMN eighteen_primary_voter BOOLEAN DEFAULT FALSE;
+
+WITH primary_voters AS (SELECT * FROM registrants NATURAL JOIN (SELECT registrantid, electionname, electiondate FROM voting_history WHERE electiondate = '2018-06-05') AS joined)
+
+UPDATE registrants SET sixteen_primary_voter = TRUE FROM primary_voters WHERE registrants.registrantid = primary_voters.registrantid;
+
+
+Sameday Registrants 
+################################################################################################################################################
+# This is defined as someone who registered as the same day as the latest election(?)
+ALTER TABLE registrants ADD COLUMN same_day_registrant BOOLEAN DEFAULT FALSE;
+
+WITH registered_on_voting_day AS (SELECT * FROM registrants WHERE registrationdate = to_date('2018-06-04', 'YYYY-MM-DD'))
+
+UPDATE registrants SET registered_after_june_primary = TRUE FROM registered_on_voting_day WHERE registrants.registrantid = registered_on_voting_day.registrantid;
+
+# registered after june 5th primary 
+################################################################################################################################################
+ALTER TABLE registrants ADD COLUMN registered_after_june_primary BOOLEAN DEFAULT FALSE;
+
+WITH post_primary_registrants AS (SELECT * FROM registrants WHERE registrationdate > to_date('2018-06-04', 'YYYY-MM-DD'))
+
+UPDATE registrants SET registered_after_june_primary = TRUE FROM post_primary_registrants WHERE registrants.registrantid = post_primary_registrants.registrantid;
+
+
+################################################################################################################################################
+ALTER TABLE registrants ADD COLUMN vbm_registration_type_permanent BOOLEAN DEFAULT FALSE;
+
+WITH permanent_vbm_registrant AS (SELECT * FROM registrants WHERE vbmvotertype = 'PERMANENT')
+
+UPDATE registrants SET vbm_registration_type_permanent = TRUE FROM permanent_vbm_registrant WHERE registrants.registrantid = permanent_vbm_registrant.registrantid;
+
+
+
+################################################################################################################################################
+ALTER TABLE registrants ADD COLUMN registered_to_vbm BOOLEAN DEFAULT TRUE;
+
+WITH vbm_null AS (SELECT * FROM registrants WHERE vbmvotertype != 'PERMANENT' OR vbmvotertype != 'UOCAVA')
+
+UPDATE registrants SET registered_to_vbm = FALSE FROM vbm_null WHERE registrants.registrantid = vbm_null.registrantid;
+
+
+
+
+
