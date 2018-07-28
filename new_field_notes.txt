@@ -1,0 +1,53 @@
+#  !!!! registrants must be double quoted whereas voting_history is not
+
+
+#  SELECT * FROM voting_historyz WHERE "ElectionDate" = '2008-11-04';
+#  SELECT "RegistrantID" FROM voting_historyz WHERE "ElectionDate" = '2008-11-04';
+#  2008-11-04 is dummy date for production date 2018-06-05
+
+
+# SELECT * FROM "registrantsz" NATURAL JOIN (SELECT DISTINCT "RegistrantID" FROM voting_historyz WHERE "ElectionDate" = '2008-11-04') AS primary_voters;
+
+# Add new column
+
+
+ALTER TABLE registrants ALTER COLUMN dob TYPE DATE
+using to_date(dob, 'YYYY-MM-DD');
+
+Voted in Primary Boolean
+################################################################################################################################################################
+WITH pv AS (SELECT registrantid FROM registrants NATURAL JOIN primary_voters) UPDATE registrants SET voted_in_primary = TRUE FROM pv WHERE pv.registrantid = registrants.registrantid;
+
+Number of times voted by mail
+################################################################################################################################################
+WITH vbm_count AS (SELECT * FROM registrants NATURAL JOIN
+			(SELECT registrantid, COUNT(registrantid) FROM voting_history WHERE method='VBM'
+				AND electiondate > CURRENT_TIMESTAMP - interval '1440 days' GROUP BY registrantid) AS vbm_cnt)
+
+UPDATE registrants SET num_times_vbm_four_years = count FROM vbm_count WHERE registrants.registrantid = vbm_count.registrantid;
+################################################################################################################################################
+
+
+Percentage of times voted in last 4 years
+################################################################################################################################################
+# Add column for percent
+ALTER TABLE registrants ADD COLUMN percent_four_years FLOAT;
+
+#I'd like for some way to dynamically insert the number of elections in the past four years into it as a query but I couldn't figure it out, so for production we'll just have to run the count and put it in manually
+SELECT COUNT(DISTINCT electiondate) FROM voting_history WHERE electiondate > now() - INTERVAL '4 years' <--- Use this to calculate the "14" constant
+
+WITH percentage AS (SELECT * FROM registrants NATURAL JOIN (SELECT registrantid, (count(registrantid) :: FLOAT / 14 * 100) AS cent FROM voting_history WHERE electiondate > now() - INTERVAL '4 years' GROUP BY registrantid) AS perc)
+UPDATE registrants SET percent_four_years = cent FROM percentage WHERE percentage.registrantid = registrants.registrantid;
+
+
+New registrant
+################################################################################################################################################
+ALTER TABLE registrants ADD COLUMN new_registrants BOOLEAN DEFAULT FALSE;
+
+WITH new_registrant AS (SELECT * FROM registrants NATURAL JOIN (SELECT DISTINCT registrantid FROM voting_history) AS hasvoted)
+
+UPDATE registrants SET new_registrants =  TRUE FROM new_registrant WHERE registrants.registrantid = new_registrant.registrantid;
+
+
+registered in last year
+################################################################################################################################################
