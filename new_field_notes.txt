@@ -1,40 +1,39 @@
-python lib/python2.7/site-packages/pgadmin4/pgAdmin4.py
 
 
-
-#  !!!! registrants must be double quoted whereas voting_history is not
-
-
-#  SELECT * FROM voting_historyz WHERE "ElectionDate" = '2008-11-04';
-#  SELECT "RegistrantID" FROM voting_historyz WHERE "ElectionDate" = '2008-11-04';
-#  2008-11-04 is dummy date for production date 2018-06-05
+# This just takes too long
+# SELECT * FROM "registrants" NATURAL JOIN (SELECT DISTINCT "RegistrantID" FROM voting_history WHERE "ElectionDate" = '2008-11-04') AS primary_voters;
 
 
-# SELECT * FROM "registrantsz" NATURAL JOIN (SELECT DISTINCT "RegistrantID" FROM voting_historyz WHERE "ElectionDate" = '2008-11-04') AS primary_voters;
-
-# Add new column
-
-
-ALTER TABLE registrants ALTER COLUMN dob TYPE DATE
-using to_date(dob, 'YYYY-MM-DD');
+#ALTER TABLE registrants ALTER COLUMN dob TYPE DATE
+#using to_date(dob, 'YYYY-MM-DD');
 
 #Voted in Primary Boolean
 ################################################################################################################################################################
 
-# This is the SQL that created the primary_voters view, can be updated so that the query includes this view as an in query WITH statement. 
-#SELECT DISTINCT voting_history.registrantid
-#   FROM voting_history
-#  WHERE voting_history.electiondate = '2008-11-04'::date;
+# Create column 
+ALTER TABLE registrants ADD COLUMN voted_in_primary BOOLEAN DEFAULT FALSE;
 
-WITH pv AS (SELECT registrantid FROM registrants NATURAL JOIN primary_voters) UPDATE registrants SET voted_in_primary = TRUE FROM pv WHERE pv.registrantid = registrants.registrantid;
+# Create view of registrant IDs who voted in the latest primary
+CREATE VIEW primary_voters AS SELECT DISTINCT "RegistrantID"
+   FROM voting_history  WHERE "ElectionDate" = '2018-06-05'::date;
+ 
+# In the registrants list, set the voted_in_primary field to true for voters who voted in the primary 
+WITH pv AS (SELECT "RegistrantID" FROM registrants NATURAL JOIN primary_voters) 
+UPDATE registrants SET voted_in_primary = TRUE FROM pv 
+WHERE pv."RegistrantID" = registrants."RegistrantId";   
 
 Number of times voted by mail
 ################################################################################################################################################
-WITH vbm_count AS (SELECT * FROM registrants NATURAL JOIN
-			(SELECT registrantid, COUNT(registrantid) FROM voting_history WHERE method='VBM'
-				AND electiondate > CURRENT_TIMESTAMP - interval '1440 days' GROUP BY registrantid) AS vbm_cnt)
+ALTER TABLE registrants ADD COLUMN num_times_vbm_four_years INTEGER;
 
-UPDATE registrants SET num_times_vbm_four_years = count FROM vbm_count WHERE registrants.registrantid = vbm_count.registrantid;
+WITH vbm_count AS (SELECT * FROM registrants NATURAL JOIN
+			(SELECT voting_history."RegistrantID", COUNT(voting_history."RegistrantID")
+			 FROM voting_history WHERE "Method"='VBM'
+				AND "ElectionDate" > CURRENT_TIMESTAMP - interval '1440 days' GROUP BY "RegistrantID")
+				   AS vbm_cnt)
+
+UPDATE registrants SET num_times_vbm_four_years = count FROM vbm_count 
+WHERE registrants."RegistrantId" = vbm_count."RegistrantID";
 ################################################################################################################################################
 
 
@@ -46,45 +45,53 @@ ALTER TABLE registrants ADD COLUMN percent_four_years FLOAT;
 #I'd like for some way to dynamically insert the number of elections in the past four years into it as a query but I couldn't figure it out, so for production we'll just have to run the count and put it in manually
 SELECT COUNT(DISTINCT electiondate) FROM voting_history WHERE electiondate > now() - INTERVAL '4 years' <--- Use this to calculate the "14" constant
 
-WITH percentage AS (SELECT * FROM registrants NATURAL JOIN (SELECT registrantid, (count(registrantid) :: FLOAT / 14 * 100) AS cent FROM voting_history WHERE electiondate > now() - INTERVAL '4 years' GROUP BY registrantid) AS perc)
+# Creates a table with registrantid and percentage of last 14 elections that registrant has voted in. Updates registrants table with that percentage in percent_four_years
+# throws "ERROR:  could not write to hash-join temporary file: No space left on device SQL state: 53100" when attempting to run query, pretty sure VM sie needs to be increased
+WITH percentage AS (SELECT * FROM registrants NATURAL JOIN 
+						(SELECT "RegistrantID", (count("RegistrantID") :: FLOAT / 14 * 100) AS cent
+					 		FROM voting_history WHERE "ElectionDate" > now() - INTERVAL '4 years' 
+					 			GROUP BY "RegistrantID") AS perc)
 
-UPDATE registrants SET percent_four_years = cent FROM percentage WHERE percentage.registrantid = registrants.registrantid;
+UPDATE registrants SET percent_four_years = cent FROM 
+	percentage WHERE percentage."RegistrantID" = registrants."RegistrantId";
 
 
 New registrant
 ################################################################################################################################################
 ALTER TABLE registrants ADD COLUMN new_registrants BOOLEAN DEFAULT FALSE;
 
-WITH new_registrant AS (SELECT * FROM registrants NATURAL JOIN (SELECT DISTINCT registrantid FROM voting_history) AS hasvoted)
+WITH new_registrant AS (SELECT * FROM registrants NATURAL JOIN (SELECT DISTINCT "RegistrantID" FROM voting_history) AS hasvoted)
 
-UPDATE registrants SET new_registrants =  TRUE FROM new_registrant WHERE registrants.registrantid = new_registrant.registrantid;
-
+UPDATE registrants SET new_registrants = TRUE FROM new_registrant WHERE registrants."RegistrantId" = new_registrant."RegistrantID";
 
 registered in last year
 ################################################################################################################################################
 
 ALTER TABLE registrants ADD COLUMN registered_last_year BOOLEAN DEFAULT FALSE;
 
-WITH year_registered AS (SELECT * FROM registrants NATURAL JOIN (SELECT registrantid, registrationdate FROM registrants WHERE registrationdate > now() - INTERVAL '1 year') AS joined)
+WITH year_registered AS (SELECT * FROM registrants NATURAL JOIN (SELECT "RegistrantId", "RegistrationDate" FROM registrants WHERE "RegistrationDate" > now() - INTERVAL '1 year') AS joined)
 
-UPDATE registrants SET registered_last_year = TRUE FROM year_registered WHERE registrants.registrantid = year_registered.registrantid;
+UPDATE registrants SET registered_last_year = TRUE FROM year_registered WHERE registrants."RegistrantId" = year_registered."RegistrantId";
 
 
 Voted in 2016 primary 
 ################################################################################################################################################
 ALTER TABLE registrants ADD COLUMN sixteen_primary_voter BOOLEAN DEFAULT FALSE;
 
-WITH primary_voters AS (SELECT * FROM registrants NATURAL JOIN (SELECT registrantid, electionname, electiondate FROM voting_history WHERE electiondate = '2016-06-07') AS joined)
+WITH primary_voters AS 
+	(SELECT * FROM registrants NATURAL JOIN 
+	 (SELECT "RegistrantID", "ElectionName", "ElectionDate" FROM voting_history WHERE "ElectionDate" = '2016-06-07') 
+	 	AS joined)
 
-UPDATE registrants SET sixteen_primary_voter = TRUE FROM primary_voters WHERE registrants.registrantid = primary_voters.registrantid;
+UPDATE registrants SET sixteen_primary_voter = TRUE FROM
+	primary_voters WHERE registrants."RegistrantId" = primary_voters."RegistrantId";
 
 Voted in 2018 primary
+# This is a repeat of voted_in_primary field and does not need to be run
 ################################################################################################################################################
-ALTER TABLE registrants ADD COLUMN eighteen_primary_voter BOOLEAN DEFAULT FALSE;
-
-WITH primary_voters AS (SELECT * FROM registrants NATURAL JOIN (SELECT registrantid, electionname, electiondate FROM voting_history WHERE electiondate = '2018-06-05') AS joined)
-
-UPDATE registrants SET sixteen_primary_voter = TRUE FROM primary_voters WHERE registrants.registrantid = primary_voters.registrantid;
+#ALTER TABLE registrants ADD COLUMN eighteen_primary_voter BOOLEAN DEFAULT FALSE;
+#WITH primary_voters AS (SELECT * FROM registrants NATURAL JOIN (SELECT registrantid, electionname, electiondate FROM voting_history WHERE electiondate = '2018-06-05') AS joined)
+#UPDATE registrants SET sixteen_primary_voter = TRUE FROM primary_voters WHERE registrants.registrantid = primary_voters.registrantid;
 
 
 Sameday Registrants 
@@ -100,28 +107,27 @@ UPDATE registrants SET registered_after_june_primary = TRUE FROM registered_on_v
 ################################################################################################################################################
 ALTER TABLE registrants ADD COLUMN registered_after_june_primary BOOLEAN DEFAULT FALSE;
 
-WITH post_primary_registrants AS (SELECT * FROM registrants WHERE registrationdate > to_date('2018-06-04', 'YYYY-MM-DD'))
+WITH registered_on_voting_day AS
+	(SELECT * FROM registrants WHERE "RegistrationDate" = to_date('2018-06-04', 'YYYY-MM-DD'))
 
-UPDATE registrants SET registered_after_june_primary = TRUE FROM post_primary_registrants WHERE registrants.registrantid = post_primary_registrants.registrantid;
+UPDATE registrants SET registered_after_june_primary = TRUE FROM registered_on_voting_day WHERE registrants."RegistrantId" = registered_on_voting_day."RegistrantId";
 
 
 ################################################################################################################################################
 ALTER TABLE registrants ADD COLUMN vbm_registration_type_permanent BOOLEAN DEFAULT FALSE;
 
-WITH permanent_vbm_registrant AS (SELECT * FROM registrants WHERE vbmvotertype = 'PERMANENT')
+WITH permanent_vbm_registrant AS (SELECT * FROM registrants WHERE "VbmVoterType" = 'PERMANENT')
 
-UPDATE registrants SET vbm_registration_type_permanent = TRUE FROM permanent_vbm_registrant WHERE registrants.registrantid = permanent_vbm_registrant.registrantid;
+UPDATE registrants SET vbm_registration_type_permanent = TRUE FROM permanent_vbm_registrant WHERE registrants."RegistrantId" = permanent_vbm_registrant."RegistrantId";
 
 
 
 ################################################################################################################################################
 ALTER TABLE registrants ADD COLUMN registered_to_vbm BOOLEAN DEFAULT TRUE;
 
-WITH vbm_null AS (SELECT * FROM registrants WHERE vbmvotertype != 'PERMANENT' OR vbmvotertype != 'UOCAVA')
+WITH vbm_null AS (SELECT * FROM registrants WHERE "VbmVoterType" != 'PERMANENT' OR "VbmVoterType" != 'UOCAVA')
 
-UPDATE registrants SET registered_to_vbm = FALSE FROM vbm_null WHERE registrants.registrantid = vbm_null.registrantid;
-
-
+UPDATE registrants SET registered_to_vbm = FALSE FROM vbm_null WHERE registrants."RegistrantId" = vbm_null."RegistrantId";
 
 
 
