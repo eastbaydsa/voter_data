@@ -18,9 +18,8 @@ CREATE VIEW primary_voters AS SELECT DISTINCT "RegistrantID"
    FROM voting_history  WHERE "ElectionDate" = '2018-06-05'::date;
  
 # In the registrants list, set the voted_in_primary field to true for voters who voted in the primary 
-WITH pv AS (SELECT "RegistrantID" FROM registrants NATURAL JOIN primary_voters) 
-UPDATE registrants SET voted_in_primary = TRUE FROM pv 
-WHERE pv."RegistrantID" = registrants."RegistrantId";   
+UPDATE registrants SET voted_in_primary = TRUE FROM primary_voters
+WHERE primary_voters."RegistrantID"::varchar(255) = registrants."RegistrantId";  
 
 Number of times voted by mail
 ################################################################################################################################################
