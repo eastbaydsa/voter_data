@@ -1,4 +1,4 @@
-CREATE TABLE voting_history(
+CREATE TABLE registrants(
    ID SERIAL PRIMARY KEY,
    CountyCode            INT     NOT NULL,
    ExtractDate            DATE     NOT NULL,
@@ -31,13 +31,29 @@ CREATE TABLE voting_history(
    Phone4Exchange        VARCHAR(100),
    Phone4NumberPart        VARCHAR(100),
    Email        VARCHAR(100),
-
-				
-
-
-   ElectionType        VARCHAR(100)     NOT NULL,
-   ElectionTypeDesc        VARCHAR(100)     NOT NULL,
-   ElectionDate            DATE     NOT NULL,
-   Method        VARCHAR(100)     NOT NULL,
+   MailingAddressLine1        VARCHAR(100),
+   MailingAddressLine2        VARCHAR(100),
+   MailingAddressLine3        VARCHAR(100),
+   MailingCity        VARCHAR(100),
+   MailingState        VARCHAR(100),
+   MailingZip5        VARCHAR(100),
+   MailingCountry        VARCHAR(100),
+   Language        VARCHAR(100),
+   DOB            DATE     NOT NULL,
+   Gender        VARCHAR(100),
+   PartyCode        VARCHAR(100)     NOT NULL,
+   Status        VARCHAR(100)     NOT NULL,
+   RegistrationDate            DATE     NOT NULL,
+   Precinct        VARCHAR(100)     NOT NULL,
+   PrecinctNumber        VARCHAR(100)     NOT NULL,
+   RegistrationMethodCode        VARCHAR(100)     NOT NULL,
+   PlaceOfBirth        VARCHAR(100),
+   NamePrefix        VARCHAR(100),
+   NonStandardAddress        VARCHAR(100),
+   VoterStatusReasonCodeDesc        VARCHAR(100)     NOT NULL,
+   AssistanceRequestFlag        VARCHAR(100)     NOT NULL,
+   VbmVoterType        VARCHAR(100),
+   EmsVoterId        INT,
+   PrecinctId            INT     NOT NULL,
    RegistrantID            INT     NOT NULL
 );
