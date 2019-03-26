@@ -6,7 +6,7 @@ CREATE TABLE registrants(
    FirstName        VARCHAR(100)     NOT NULL,
    MiddleName        VARCHAR(100),
    Suffix        VARCHAR(100),
-   AddressNumber            INT,
+   AddressNumber            VARCHAR(100),
    HouseFractionNumber        VARCHAR(100),
    AddressNumberSuffix        VARCHAR(100),
    StreetDirPrefix        VARCHAR(100),
