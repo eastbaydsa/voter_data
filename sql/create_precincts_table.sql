@@ -3,9 +3,9 @@ CREATE TABLE precincts(
    CountyCode            INT     NOT NULL,
    PrecinctId            INT     NOT NULL,
    ExtractDate            DATE     NOT NULL,
-   District        VARCHAR(100),
-   DistrictName        VARCHAR(100),
-   DistrictTypeCode        VARCHAR(100),
-   PrecinctNumber        VARCHAR(100),
-   PrecinctName        VARCHAR(100)
+   District        VARCHAR(100)     NOT NULL,
+   DistrictName        VARCHAR(100)     NOT NULL,
+   DistrictTypeCode        VARCHAR(100)     NOT NULL,
+   PrecinctNumber        VARCHAR(100)     NOT NULL,
+   PrecinctName        VARCHAR(100)     NOT NULL
 );
