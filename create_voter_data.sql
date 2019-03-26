@@ -1,5 +1,5 @@
 CREATE TABLE precincts(
-   ID INT PRIMARY KEY     NOT NULL,
+   ID SERIAL PRIMARY KEY,
    CountyCode            INT     NOT NULL,
    PrecinctId            INT     NOT NULL,
    ExtractDate            DATE     NOT NULL,
