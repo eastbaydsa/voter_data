@@ -18,8 +18,21 @@ CREATE TABLE voting_history(
    City        VARCHAR(100)     NOT NULL,
    State        VARCHAR(100)     NOT NULL,
    Zip        VARCHAR(100)     NOT NULL,
+   Phone1Area        VARCHAR(100),
+   Phone1Exchange        VARCHAR(100),
+   Phone1NumberPart        VARCHAR(100),
+   Phone2Area        VARCHAR(100),
+   Phone2Exchange        VARCHAR(100),
+   Phone2NumberPart        VARCHAR(100),
+   Phone3Area        VARCHAR(100),
+   Phone3Exchange        VARCHAR(100),
+   Phone3NumberPart        VARCHAR(100),
+   Phone4Area        VARCHAR(100),
+   Phone4Exchange        VARCHAR(100),
+   Phone4NumberPart        VARCHAR(100),
+   Email        VARCHAR(100),
 
-
+				
 
 
    ElectionType        VARCHAR(100)     NOT NULL,
